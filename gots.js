@@ -4,7 +4,7 @@ var process = require('process');
 
 
 // 从目录dir开始扫描
-// 需要忽略一些目录，可设置.ctsignore文件。假设我这个软件叫cts(compile TypeScript)
+// 需要忽略一些目录，可设置.gotsignore文件。假设我这个软件叫gots(Go TypeScript)
 var scan = function(dir, callback) {
   var children;
   children = fs.readdirSync(dir);
