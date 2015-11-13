@@ -1,6 +1,6 @@
 {
     "name": "gots",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "compile .ts in current directory and its sub-directories to .js according to their timestamps",
     "main": "gots.js",
     "bin" : { "gots": "./gots" },
@@ -16,5 +16,5 @@
     "bugs": {
         "url": "https://github.com/duyanning/gots/issues"
     },
-    "homepage": "https://github.com/duyanning/gots#readme"
+    "homepage": "https://github.com/duyanning/gots#README.md"
 }

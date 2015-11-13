@@ -1,6 +1,6 @@
 var fs = require('fs');
 var execSync = require('child_process').execSync;
-var process = require('process');
+//var process = require('process');
 
 
 // 从目录dir开始扫描
@@ -112,3 +112,5 @@ for (i = 0; i < files.length; i++) {
   //   lint(files[i]);
   // }
 }
+
+//process.exit(0);
