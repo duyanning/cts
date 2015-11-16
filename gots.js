@@ -1,11 +1,46 @@
+/*jshint node : true */
+
 var fs = require('fs');
 var execSync = require('child_process').execSync;
 //var process = require('process');
+//var glob = require("glob");     // https://www.npmjs.com/package/glob
+var minimatch = require("minimatch"); // https://www.npmjs.com/package/minimatch
+//var os = require("os");
 
+var loadDotIgnore = function() {
+  var ignoreList = [];
+  var negateIgnoreList = [];
+  var contents;
+  var globList;
+  
+  // æ ¹æ®æ–‡ä»¶.gotsignoreçš„å†…å®¹æ„é€ å¿½ç•¥ã€ä¸å¾—å¿½ç•¥ä¸¤ä¸ªåˆ—è¡¨
+  if (fs.existsSync('.gotsignore')) {
+    contents = fs.readFileSync('.gotsignore').toString();
+    //console.log(contents);
+    globList = contents.split(/\s+/); // os.EOLä¹Ÿè¡Œ
+    //console.log(globList);
+    ignoreList = globList;
+  }
+  
 
-// ´ÓÄ¿Â¼dir¿ªÊ¼É¨Ãè
-// ĞèÒªºöÂÔÒ»Ğ©Ä¿Â¼£¬¿ÉÉèÖÃ.gotsignoreÎÄ¼ş¡£¼ÙÉèÎÒÕâ¸öÈí¼ş½Ğgots(Go TypeScript)
-var scan = function(dir, callback) {
+  return function (path) {
+    // files = files.filter(minimatch.filter('!abc.ts', {matchBase: true}));
+    var i;
+    for (i = 0; i < ignoreList.length; i++) {
+      if (minimatch(path, ignoreList[i], {matchBase: true})) { // 
+        //console.log('ignore ' + path);
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+};
+
+// ä»ç›®å½•dirå¼€å§‹æ‰«æ
+// éœ€è¦å¿½ç•¥ä¸€äº›ç›®å½•ï¼Œå¯è®¾ç½®.gotsignoreæ–‡ä»¶ã€‚å‡è®¾æˆ‘è¿™ä¸ªè½¯ä»¶å«gots(Go TypeScript)
+var scan = function(dir, isIgnored, callback) {
   var children;
   children = fs.readdirSync(dir);
   //console.log(children);
@@ -17,18 +52,33 @@ var scan = function(dir, callback) {
     //console.log(children[i]);
     //console.log(isTypeScript(children[i]));
     name = children[i];
-    path = dir + '/' + name;
-    if (fs.statSync(path).isDirectory()) { // Èç¹ûÊÇÄ¿Â¼£¬¾Íµİ¹éÉ¨Ãè
-      scan(path, callback);
+    if (dir == '.') {
+      path = name;
     }
-    else {                      // Èç¹ûÊÇÎÄ¼ş£¬¾Í½»ÓÉcallbackº¯Êı´¦Àí
-      callback(path);
+    else {
+      path = dir + '/' + name;
+    }
+
+    // åœ¨æ­¤å¤„æ ¹æ®.gotsignoreå¯¹pathè¿›è¡Œå¤„ç†
+    if (isIgnored(path)) {
+      continue;
+    }
+    
+    if (fs.statSync(path).isDirectory()) { // å¦‚æœæ˜¯ç›®å½•ï¼Œå°±é€’å½’æ‰«æ
+      scan(path, isIgnored, callback);
+    }
+    else {                      // å¦‚æœæ˜¯æ–‡ä»¶ï¼Œå°±äº¤ç”±callbackå‡½æ•°å¤„ç†
+      // ç›®å‰callbackä»…ä»…æ˜¯æ”¶é›†æ–‡ä»¶åã€‚åœ¨callbackä¸­ç¼–è¯‘ä¹Ÿå¯ä»¥ã€‚
+      // å¦‚æœæŸä¸ªæ–‡ä»¶ç¼–è¯‘æŠ¥é”™ï¼Œè¿˜ç»§ç»­ç¼–è¯‘å…¶ä»–æ–‡ä»¶å—ï¼Ÿ
+      // å¦‚æœè¦ç»§ç»­ç¼–è¯‘å…¶ä»–æ–‡ä»¶ï¼Œé‚£æ”¶é›†æ–‡ä»¶åå°±æ˜¯å¯¹çš„ã€‚(å¥½åƒå¤§å¤šç¼–è¯‘å™¨éƒ½æ˜¯å¦‚æ­¤)
+      // å¦‚æœè¦ç«‹å³ç»ˆæ­¢ç¨‹åºï¼Œæœ€å¥½æ”¾åœ¨callbackä¸­ç¼–è¯‘ã€‚è¿™æ ·å¯ä»¥ç¼–è¯‘ä¸å¿…è¦çš„æœé›†ã€‚
+      callback(path);           
     }
   }
 
 };
 
-var patDotTS = new RegExp('\\.ts$'); // .ÔÚÕıÔò±í´ïÊ½ÖĞÓĞÌØÊâº¬Òå£¬ÒªÓÃ\¶ÔËü×ªÒå£¬µ«\ÔÚJavaScriptÖĞÒ²ÓĞÌØÊâº¬Òå£¬×Ô¼ºÒ²Ğè×ªÒå
+var patDotTS = new RegExp('\\.ts$'); // .åœ¨æ­£åˆ™è¡¨è¾¾å¼ä¸­æœ‰ç‰¹æ®Šå«ä¹‰ï¼Œè¦ç”¨\å¯¹å®ƒè½¬ä¹‰ï¼Œä½†\åœ¨JavaScriptä¸­ä¹Ÿæœ‰ç‰¹æ®Šå«ä¹‰ï¼Œè‡ªå·±ä¹Ÿéœ€è½¬ä¹‰
 var isTypeScript = function (name) {
   return patDotTS.test(name);
 };
@@ -38,79 +88,115 @@ var isJavaScript = function (name) {
   return patDotJS.test(name);
 };
 
-var files = [];       // ËÑ¼¯µ½µÄÎÄ¼şÁĞ±í¡£ÔªËØÎª´Ó.¿ªÊ¼µÄÎÄ¼şÂ·¾¶
-// É¨Ãè£¬ËÑ¼¯Ã»ÓĞ¶ÔÓ¦.tsµÄ.js£¬ÒÔ¼°ĞèÒª±àÒëµÄ.ts
-scan('.', function (path) {
-  var ts, js;
-  var tsTime, jsTime;
-
-  if (isJavaScript(path)) {
-    js = path;
-    ts = js.replace(patDotJS, '.ts');
-
-    if (!fs.existsSync(ts)) {
-      //console.log(js);
-      files.push(js);
-    }
-  }
-  else if (isTypeScript(path)) {
-    ts = path;
-    js = ts.replace(patDotTS, '.js'); // /.ts/
-    if (!fs.existsSync(js)) {
-      //console.log(ts);
-      files.push(ts);
-    }
-    else {
-      tsTime = fs.statSync(ts).mtime;
-      jsTime = fs.statSync(js).mtime;
-      if (jsTime < tsTime) {
-        //console.log(ts);
-        files.push(ts);
-      }
-    }
-  }
-});
+var debug = true;
 
 var compile = function (tsPath) {
   var compileCmd;
   console.log('Compiling ' + tsPath);
   compileCmd = 'tsc --noEmitOnError ' + tsPath;
   try {
-    execSync(compileCmd);       // Èç¹ûÍË³ö×´Ì¬·Ç0£¬»áµ¼ÖÂÒì³£·¢Éú¡£³ı´ËÍâ£¬²¢ÎŞÆäËû»ñµÃÍË³ö×´Ì¬µÄ°ì·¨
+    execSync(compileCmd);       // å¦‚æœé€€å‡ºçŠ¶æ€é0ï¼Œä¼šå¯¼è‡´å¼‚å¸¸å‘ç”Ÿã€‚é™¤æ­¤å¤–ï¼Œå¹¶æ— å…¶ä»–è·å¾—é€€å‡ºçŠ¶æ€çš„åŠæ³•
+  }
+  catch (err) {
+    console.log(err.stdout.toString());
+    console.log('error found!');
+    return 1;
+  }
+  
+  return 0;
+};
+
+var lint = function (lintCmd, jsPath) {
+  var cmdLn;
+  console.log('Linting ' + jsPath);
+  cmdLn = lintCmd + ' ' + jsPath;
+  try {
+    execSync(cmdLn);       // å¦‚æœé€€å‡ºçŠ¶æ€é0ï¼Œä¼šå¯¼è‡´å¼‚å¸¸å‘ç”Ÿã€‚é™¤æ­¤å¤–ï¼Œå¹¶æ— å…¶ä»–è·å¾—é€€å‡ºçŠ¶æ€çš„åŠæ³•
   }
   catch (err) {
     console.log(err.stdout.toString());
     //console.log('error found!');
     return 1;
   }
+
+  return 0;
 };
 
-var lint = function (jsPath) {
-  var lintCmd;
-  console.log('Linting ' + jsPath);
-  lintCmd = 'lint ' + jsPath;
-  try {
-    execSync(lintCmd);       // Èç¹ûÍË³ö×´Ì¬·Ç0£¬»áµ¼ÖÂÒì³£·¢Éú¡£³ı´ËÍâ£¬²¢ÎŞÆäËû»ñµÃÍË³ö×´Ì¬µÄ°ì·¨
-  }
-  catch (err) {
-    console.log(err.stdout.toString());
-    //console.log('error found!');
-  }
-};
+var main = function () {
+  var exitCode;
+  var i;
+  var files = [];       // æœé›†åˆ°çš„æ–‡ä»¶åˆ—è¡¨ã€‚å…ƒç´ ä¸ºä».å¼€å§‹çš„æ–‡ä»¶è·¯å¾„
+  var isIgnored;
+  var lintCmd = '';
 
-var exitCode;
-var i;
-for (i = 0; i < files.length; i++) {
-  if (isTypeScript(files[i])) {
-    exitCode = compile(files[i]);
-    if (exitCode != 0) {
-      process.exit(exitCode);
-      break;
+  if (process.argv.length >= 3) { // argv[0]ä¸ºnode arg[1]ä¸ºè„šæœ¬å
+    lintCmd = process.argv[2];
+    if (lintCmd !== 'jslint' && lintCmd !== 'jshint') {
+      console.log('invalid lint program name');
+      return;
     }
   }
-  // else if (isJavaScript(files[i])) {
-  //   lint(files[i]);
-  // }
-}
 
-//process.exit(0);
+  isIgnored = loadDotIgnore();
+
+  // æ‰«æï¼Œæœé›†æ²¡æœ‰å¯¹åº”.tsçš„.jsï¼Œä»¥åŠéœ€è¦ç¼–è¯‘çš„.ts
+  scan('.', isIgnored, function (path) {
+    var ts, js;
+    var tsTime, jsTime;
+
+    if (isJavaScript(path)) {
+      js = path;
+      ts = js.replace(patDotJS, '.ts');
+
+      if (!fs.existsSync(ts)) {
+        //console.log(js);
+        files.push(js);
+      }
+    }
+    else if (isTypeScript(path)) {
+      ts = path;
+      js = ts.replace(patDotTS, '.js'); // /.ts/
+      if (!fs.existsSync(js)) {
+        //console.log(ts);
+        files.push(ts);
+      }
+      else {
+        tsTime = fs.statSync(ts).mtime;
+        jsTime = fs.statSync(js).mtime;
+        if (jsTime < tsTime) {
+          //console.log(ts);
+          files.push(ts);
+        }
+      }
+    }
+  });
+
+  for (i = 0; i < files.length; i++) {
+    if (isTypeScript(files[i])) {
+      exitCode = compile(files[i]);
+    }
+    else if (lintCmd !== '' && isJavaScript(files[i])) {
+      exitCode = lint(lintCmd, files[i]);
+    }
+
+    // if (exitCode != 0) {
+    //   //console.log("exit");
+    //   process.exit(exitCode);
+    //   break;
+    // }
+
+    
+  }
+};
+
+main();
+
+// var tmp = function () {
+//   var options = {};
+//   options.root = process.cwd();   // æ ¹ç›®å½•ä»å½“å‰ç›®å½•(å³.gotsignoreæ‰€åœ¨ç›®å½•)ç®—èµ·
+
+//   glob("*.ts", options, function (er, files) {
+//     console.log(files);
+//   });
+  
+// };

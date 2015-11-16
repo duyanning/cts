@@ -1,0 +1,15 @@
+{
+    "undef"    : true,
+    "unused"   : false,
+    "laxbreak" : true,
+    "browser"  : true,
+    "devel"    : true,
+    "indent"   : 2,
+    "maxerr"   : 50,
+    "newcap"   : true,
+    "nomen"    : true,
+    "plusplus" : true,
+    "regexp"   : true,
+    "white"    : true,
+    "plusplus" : false
+} 
